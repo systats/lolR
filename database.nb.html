@@ -221,8 +221,8 @@ Authentication complete.</code></pre>
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
-<div id="upload" class="section level2">
-<h2>Upload</h2>
+<div id="upload-data" class="section level2">
+<h2>Upload data</h2>
 <p>If you have a big dataframe use <code>gs_upload_big</code>. Speed up big data uploads by csv upload…</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
@@ -283,16 +283,31 @@ Browser URL: https://docs.google.com/spreadsheets/d/12kiGAEmkBNsWAxBEF_XdoLqrx-7
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
-<p>standard functions</p>
+</div>
+<div id="get-data" class="section level2">
+<h2>Get data</h2>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuc2hlZXRfa2V5XG5cbmBgYCJ9 -->
-<pre class="r"><code>sheet_key
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaWQgPC0gZ3NfdGl0bGUoXCJtdGNhcnNcIilcbnNoZWV0X2tleSA8LSBpZCRzaGVldF9rZXkgXG4jaWQgJT4lIGdzX2Jyb3dzZSgpXG5tdGNhcnMgPC0gaWQgJT4lIGdzX3JlYWQoKVxuYGBgIn0= -->
+<pre class="r"><code>id &lt;- gs_title(&quot;mtcars&quot;)
+sheet_key &lt;- id$sheet_key 
+#id %&gt;% gs_browse()
+mtcars &lt;- id %&gt;% gs_read()</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
+</div>
+<div id="append-data" class="section level2">
+<h2>Append data</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3NfYXBwZW5kX3JvdyA8LSBmdW5jdGlvbih0YmwsIHJvdyl7XG4gIHRibCAlPiUgZ3NfYWRkX3JvdyhpbnB1dCA9IHJvdylcbn1cbmdzX2FwcGVuZF9yb3coaWQsIG10Y2Fyc1sxLF0pXG5cbmBgYCJ9 -->
+<pre class="r"><code>gs_append_row &lt;- function(tbl, row){
+  tbl %&gt;% gs_add_row(input = row)
+}
+gs_append_row(id, mtcars[1,])
 </code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIFwiMThfMUM3a1B4Z0c3bHN3Smp1cXJOSHBweEEwYjRneVN0UERrOGN0YUh3bkFcIlxuIn0= -->
-<pre><code>[1] &quot;18_1C7kPxgG7lswJjuqrNHppxA0b4gyStPDk8ctaHwnA&quot;</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
@@ -342,10 +357,23 @@ Row successfully appended.</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
+</div>
+<div id="shiny-modules" class="section level2">
+<h2>Shiny Modules</h2>
+<!-- rnb-text-end -->
+<!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyMgYXV0aGVudGlmaWNhdGlvblxuZ29vZ2xlc2hlZXRzOjpnc19hdXRoKHRva2VuID0gXCJnb29nbGVfcGFyYWJvb3N0X3Rva2VuLnJkc1wiKVxuc2hlZXRfa2V5IDwtIFwiMVpUaWZkSFFlNVRnOTYtTUF3ajRYczJVdW9uTllTRkh3SGduLWdmZ25CSW9cIlxud2l0aF9sYWJlbCA8LSBnb29nbGVzaGVldHM6OmdzX2tleShzaGVldF9rZXkpXG5gYGAifQ== -->
+<pre class="r"><code>## authentification
+googlesheets::gs_auth(token = &quot;google_paraboost_token.rds&quot;)
+sheet_key &lt;- &quot;1ZTifdHQe5Tg96-MAwj4Xs2UuonNYSFHwHgn-gfgnBIo&quot;
+with_label &lt;- googlesheets::gs_key(sheet_key)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-chunk-end -->
+<!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKIyMgUGFja2FnZXMKCiogW2F1dGhlbnRpZmljYXRpb24gdG8gZ29vZ2xlXShodHRwczovL2NyYW4uci1wcm9qZWN0Lm9yZy93ZWIvcGFja2FnZXMvZ29vZ2xlQXV0aFIvdmlnbmV0dGVzL2dvb2dsZS1hdXRoZW50aWNhdGlvbi10eXBlcy5odG1sKQoKCmBgYHtyfQpwYWNtYW46OnBfbG9hZChkcGx5ciwgZ2dwbG90MiwgZ29vZ2xlc2hlZXRzLCBvcGVueGxzeCkKYGBgCgpQcmVwYXJlIHRoZSBPQXV0aCB0b2tlbiBhbmQgc2V0IHVwIHRoZSB0YXJnZXQgc2hlZXQuCgoqIFtFeGFtcGxlIEFwcF0oaHR0cHM6Ly9naXRodWIuY29tL2plbm55YmMvZ29vZ2xlc2hlZXRzL2Jsb2IvbWFzdGVyL2luc3Qvc2hpbnktZXhhbXBsZXMvMTBfcmVhZC13cml0ZS1wcml2YXRlLXNoZWV0L2dsb2JhbC5SKQoqIFtTb2x1dGlvbl0oaHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS9xdWVzdGlvbnMvMzI1Mzc4ODIvYWRkaW5nLXJvd3MtdG8tYS1nb29nbGUtc2hlZXQtdXNpbmctdGhlLXItcGFja2FnZS1nb29nbGVzaGVldHMKKQoKIyMgQXV0aAoKYGBge3J9CnNoaW55X3Rva2VuIDwtIGdzX2F1dGgoKQojc2F2ZVJEUyhzaGlueV90b2tlbiwgInNoaW55X2FwcF9sb2xfdG9rZW4ucmRzIikKYGBgCgpJbnRvIHRoZSBBcHAuLi4KCmBgYHtyLCBldmFsID0gRn0KIyBnb29nbGVzaGVldHM6OmdzX2F1dGgodG9rZW4gPSAic2hpbnlfYXBwX2xvbF90b2tlbi5yZHMiKQojIHNoZWV0X2tleSA8LSAiMXFJUEFuc3ZGaDIzSVpKbC01dGZZUGMxU25ZcmJBcEo4MnNYZkE0YWN1YXciCiMgc3MgPC0gZ29vZ2xlc2hlZXRzOjpnc19rZXkoc2hlZXRfa2V5KQpgYGAKCgoKIyMgVXBsb2FkCgoKSWYgeW91IGhhdmUgYSBiaWcgZGF0YWZyYW1lIHVzZSBgZ3NfdXBsb2FkX2JpZ2AuIFNwZWVkIHVwIGJpZyBkYXRhIHVwbG9hZHMgYnkgY3N2IHVwbG9hZC4uLgoKYGBge3J9CmdzX3VwbG9hZF9iaWcgPC0gZnVuY3Rpb24odGJsLCBkYXRhKXsKICAjIHNwZWVkIHVwIGJpZyBkYXRhIHVwbG9hZHMgYnkgY3N2IHVwbG9hZAogIGZpbGVfbmFtZSA8LSBwYXN0ZTAodGJsLCAiLnhsc3giKQogIG9wZW54bHN4Ojp3cml0ZS54bHN4KGRhdGEsIGZpbGUgPSBmaWxlX25hbWUpCgogIGdvb2dsZXNoZWV0czo6Z3NfdXBsb2FkKAogICAgZmlsZSA9IGZpbGVfbmFtZSwgCiAgICBzaGVldF90aXRsZSA9IHRibAogICkKICBmaWxlLnJlbW92ZShmaWxlX25hbWUpCn0KCmdzX3VwbG9hZF9iaWcoIm10Y2FyczEiLCBtdGNhcnMpCmBgYAoKSWYgeW91IG9ubHkgd2FudCB0byBpbml0aWFsaXplIGEgZGF0YSBzaGVhdCB3aXRoIHNvbWUgZW50cmllcyB1c2UgYGdzX3VwbG9hZGAKCmBgYHtyfQpnc191cGxvYWQgPC0gZnVuY3Rpb24odGJsLCBkYXRhKXsKICBvdXQgPC0gZ3NfbmV3KAogICAgdGJsLCAKICAgIGlucHV0ID0gZGF0YSwgCiAgICB0cmltID0gVAogICkKICByZXR1cm4ob3V0KQp9CmdzX3VwbG9hZCgibXRjYXJzMiIsIG10Y2FycykKYGBgCgpzdGFuZGFyZCBmdW5jdGlvbnMKCmBgYHtyfQppZCA8LSBnc190aXRsZSgibXRjYXJzIikKc2hlZXRfa2V5IDwtIGlkJHNoZWV0X2tleSAKI2lkICU+JSBnc19icm93c2UoKQptdGNhcnMgPC0gaWQgJT4lIGdzX3JlYWQoKQpgYGAKCgpgYGB7cn0KbXRjYXJzIDwtIGdzX3RpdGxlKCJtdGNhcnMiKSAlPiUgCiAgZ3NfcmVhZCgpCgpnc19hcHBlbmRfcm93IDwtIGZ1bmN0aW9uKHRibCwgcm93KXsKICB0YmwgJT4lIGdzX2FkZF9yb3coaW5wdXQgPSByb3cpCn0KZ3NfYXBwZW5kX3JvdyhpZCwgbXRjYXJzWzEsXSkKCgpnc19hcHBlbmRfcm93cyA8LSBmdW5jdGlvbih0YmwsIGRhdGEpewogIG10Y2FycyAlPiUgCiAgICBzcGxpdCgxOm5yb3coLikpICU+JSAKICAgIHB1cnJyOjp3YWxrKH5nc19hcHBlbmRfcm93KHRibCwgLngpKQp9Cgpnc19hcHBlbmRfcm93cyhpZCwgbXRjYXJzWzE6NSxdKQojaWQgPC0gZ3NfdGl0bGUoIm5vX2xhYmVsIikKI2lkICU+JSBnc19icm93c2UoKQojbm9fbGFiZWwgPC0gZ3NfcmVhZChpZCkKYGBgCgoKCgo=</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKIyMgUGFja2FnZXMKCiogW2F1dGhlbnRpZmljYXRpb24gdG8gZ29vZ2xlXShodHRwczovL2NyYW4uci1wcm9qZWN0Lm9yZy93ZWIvcGFja2FnZXMvZ29vZ2xlQXV0aFIvdmlnbmV0dGVzL2dvb2dsZS1hdXRoZW50aWNhdGlvbi10eXBlcy5odG1sKQoKCmBgYHtyfQpwYWNtYW46OnBfbG9hZChkcGx5ciwgZ2dwbG90MiwgZ29vZ2xlc2hlZXRzLCBvcGVueGxzeCkKYGBgCgpQcmVwYXJlIHRoZSBPQXV0aCB0b2tlbiBhbmQgc2V0IHVwIHRoZSB0YXJnZXQgc2hlZXQuCgoqIFtFeGFtcGxlIEFwcF0oaHR0cHM6Ly9naXRodWIuY29tL2plbm55YmMvZ29vZ2xlc2hlZXRzL2Jsb2IvbWFzdGVyL2luc3Qvc2hpbnktZXhhbXBsZXMvMTBfcmVhZC13cml0ZS1wcml2YXRlLXNoZWV0L2dsb2JhbC5SKQoqIFtTb2x1dGlvbl0oaHR0cHM6Ly9zdGFja292ZXJmbG93LmNvbS9xdWVzdGlvbnMvMzI1Mzc4ODIvYWRkaW5nLXJvd3MtdG8tYS1nb29nbGUtc2hlZXQtdXNpbmctdGhlLXItcGFja2FnZS1nb29nbGVzaGVldHMKKQoKIyMgQXV0aAoKYGBge3J9CnNoaW55X3Rva2VuIDwtIGdzX2F1dGgoKQojc2F2ZVJEUyhzaGlueV90b2tlbiwgInNoaW55X2FwcF9sb2xfdG9rZW4ucmRzIikKYGBgCgpJbnRvIHRoZSBBcHAuLi4KCmBgYHtyLCBldmFsID0gRn0KIyBnb29nbGVzaGVldHM6OmdzX2F1dGgodG9rZW4gPSAic2hpbnlfYXBwX2xvbF90b2tlbi5yZHMiKQojIHNoZWV0X2tleSA8LSAiMXFJUEFuc3ZGaDIzSVpKbC01dGZZUGMxU25ZcmJBcEo4MnNYZkE0YWN1YXciCiMgc3MgPC0gZ29vZ2xlc2hlZXRzOjpnc19rZXkoc2hlZXRfa2V5KQpgYGAKCgoKIyMgVXBsb2FkIGRhdGEKCgpJZiB5b3UgaGF2ZSBhIGJpZyBkYXRhZnJhbWUgdXNlIGBnc191cGxvYWRfYmlnYC4gU3BlZWQgdXAgYmlnIGRhdGEgdXBsb2FkcyBieSBjc3YgdXBsb2FkLi4uCgpgYGB7cn0KZ3NfdXBsb2FkX2JpZyA8LSBmdW5jdGlvbih0YmwsIGRhdGEpewogICMgc3BlZWQgdXAgYmlnIGRhdGEgdXBsb2FkcyBieSBjc3YgdXBsb2FkCiAgZmlsZV9uYW1lIDwtIHBhc3RlMCh0YmwsICIueGxzeCIpCiAgb3Blbnhsc3g6OndyaXRlLnhsc3goZGF0YSwgZmlsZSA9IGZpbGVfbmFtZSkKCiAgZ29vZ2xlc2hlZXRzOjpnc191cGxvYWQoCiAgICBmaWxlID0gZmlsZV9uYW1lLCAKICAgIHNoZWV0X3RpdGxlID0gdGJsCiAgKQogIGZpbGUucmVtb3ZlKGZpbGVfbmFtZSkKfQoKZ3NfdXBsb2FkX2JpZygibXRjYXJzMSIsIG10Y2FycykKYGBgCgpJZiB5b3Ugb25seSB3YW50IHRvIGluaXRpYWxpemUgYSBkYXRhIHNoZWF0IHdpdGggc29tZSBlbnRyaWVzIHVzZSBgZ3NfdXBsb2FkYAoKYGBge3J9CmdzX3VwbG9hZCA8LSBmdW5jdGlvbih0YmwsIGRhdGEpewogIG91dCA8LSBnc19uZXcoCiAgICB0YmwsIAogICAgaW5wdXQgPSBkYXRhLCAKICAgIHRyaW0gPSBUCiAgKQogIHJldHVybihvdXQpCn0KZ3NfdXBsb2FkKCJtdGNhcnMyIiwgbXRjYXJzKQpgYGAKCiMjIEdldCBkYXRhCgpgYGB7cn0KaWQgPC0gZ3NfdGl0bGUoIm10Y2FycyIpCnNoZWV0X2tleSA8LSBpZCRzaGVldF9rZXkgCiNpZCAlPiUgZ3NfYnJvd3NlKCkKbXRjYXJzIDwtIGlkICU+JSBnc19yZWFkKCkKYGBgCgoKCiMjIEFwcGVuZCBkYXRhCgpgYGB7cn0KZ3NfYXBwZW5kX3JvdyA8LSBmdW5jdGlvbih0YmwsIHJvdyl7CiAgdGJsICU+JSBnc19hZGRfcm93KGlucHV0ID0gcm93KQp9CmdzX2FwcGVuZF9yb3coaWQsIG10Y2Fyc1sxLF0pCgpgYGAKCgpgYGB7cn0KZ3NfYXBwZW5kX3Jvd3MgPC0gZnVuY3Rpb24odGJsLCBkYXRhKXsKICBkYXRhICU+JSAKICAgIHNwbGl0KDE6bnJvdyguKSkgJT4lIAogICAgcHVycnI6OndhbGsofmdzX2FwcGVuZF9yb3codGJsLCAueCkpCn0KCmdzX2FwcGVuZF9yb3dzKGlkLCBtdGNhcnNbMTo1LF0pCiNpZCA8LSBnc190aXRsZSgibm9fbGFiZWwiKQojaWQgJT4lIGdzX2Jyb3dzZSgpCiNub19sYWJlbCA8LSBnc19yZWFkKGlkKQpgYGAKCgoKIyMgU2hpbnkgTW9kdWxlcwoKYGBge3J9CiMjIGF1dGhlbnRpZmljYXRpb24KZ29vZ2xlc2hlZXRzOjpnc19hdXRoKHRva2VuID0gImdvb2dsZV9wYXJhYm9vc3RfdG9rZW4ucmRzIikKc2hlZXRfa2V5IDwtICIxWlRpZmRIUWU1VGc5Ni1NQXdqNFhzMlV1b25OWVNGSHdIZ24tZ2ZnbkJJbyIKd2l0aF9sYWJlbCA8LSBnb29nbGVzaGVldHM6OmdzX2tleShzaGVldF9rZXkpCmBgYAoKCgoKCgoKCgo=</div>
 
 
 

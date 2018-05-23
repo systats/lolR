@@ -429,3 +429,35 @@ anytime(1525900731766/1000)
 ```
 
 
+
+
+
+
+## scrape
+
+```{r}
+url <- "http://www.gamesoflegends.com/game/gameshow.php?id=11650"
+html <- url %>% 
+  xml2::read_html()
+
+blue_team <- html %>% 
+  rvest::html_node(".blue_line a") %>% 
+  html_text()
+
+red_team <- html %>% 
+  rvest::html_node(".red_line a") %>% 
+  html_text()
+
+
+html %>% 
+  rvest::html_nodes(".black_link") %>% 
+  html_text() %>% 
+  .[.!=""] %>% 
+  tibble(player = .) %>% 
+  split(c(rep("blue",5), rep("red", 5)))
+```
+
+
+
+
+

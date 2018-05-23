@@ -35,7 +35,7 @@ Into the App...
 
 
 
-## Upload
+## Upload data
 
 
 If you have a big dataframe use `gs_upload_big`. Speed up big data uploads by csv upload...
@@ -70,7 +70,7 @@ gs_upload <- function(tbl, data){
 gs_upload("mtcars2", mtcars)
 ```
 
-standard functions
+## Get data
 
 ```{r}
 id <- gs_title("mtcars")
@@ -80,18 +80,21 @@ mtcars <- id %>% gs_read()
 ```
 
 
-```{r}
-mtcars <- gs_title("mtcars") %>% 
-  gs_read()
 
+## Append data
+
+```{r}
 gs_append_row <- function(tbl, row){
   tbl %>% gs_add_row(input = row)
 }
 gs_append_row(id, mtcars[1,])
 
+```
 
+
+```{r}
 gs_append_rows <- function(tbl, data){
-  mtcars %>% 
+  data %>% 
     split(1:nrow(.)) %>% 
     purrr::walk(~gs_append_row(tbl, .x))
 }
@@ -101,6 +104,22 @@ gs_append_rows(id, mtcars[1:5,])
 #id %>% gs_browse()
 #no_label <- gs_read(id)
 ```
+
+
+
+## Shiny Modules
+
+```{r}
+## authentification
+googlesheets::gs_auth(token = "google_paraboost_token.rds")
+sheet_key <- "1ZTifdHQe5Tg96-MAwj4Xs2UuonNYSFHwHgn-gfgnBIo"
+with_label <- googlesheets::gs_key(sheet_key)
+```
+
+
+
+
+
 
 
 
