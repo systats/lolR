@@ -1,0 +1,30 @@
+
+.f16,
+.f32 {
+  list-style: none;
+  padding-left: 0;
+}
+
+.f16 .flag,
+.f32 .flag {
+  display: inline-block;
+}
+
+.f16 .flag.sub,
+.f32 .flag.sub {
+  vertical-align: sub;
+}
+
+
+.f16 .flag {
+  min-width: 16px;
+  min-height: 16px;
+  line-height: 16px;
+}
+
+
+.f32 .flag {
+  min-width: 32px;
+  min-height: 32px;
+  line-height: 32px;
+}

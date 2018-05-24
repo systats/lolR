@@ -1,0 +1,97 @@
+
+html body.riotbar-present .riotbar-arrow {
+  -webkit-transition: transform 0.5s ease-out;
+  transition: transform 0.5s ease-out;
+  background: url(https://cdn.leagueoflegends.com/riotbar/prod/latest/images/bar/dropdown-trigger.png?1478563498) no-repeat center;
+  height: 100%;
+  min-height: 5px;
+  min-width: 8px;
+}
+
+html body.riotbar-present .active .riotbar-arrow {
+  -webkit-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
+}
+
+html body.riotbar-present #riotbar-subbar,
+html body.riotbar-present #riotbar-alerts {
+  z-index: 108;
+}
+
+html body.riotbar-present #riotbar-bar {
+  z-index: 111;
+}
+
+html body.riotbar-present .riotbar-base-element .riotbar-pagewidth {
+  padding: 0 0 0 5px;
+}
+
+html body.riotbar-present .riotbar-base-element #riotbar-touchpoints {
+  width: auto;
+}
+
+html body.riotbar-present .riotbar-base-element #riotbar-account-anonymous {
+  padding-right: 3px;
+}
+
+html body.riotbar-present .riotbar-cookie-policy-v2 {
+  z-index: 117;
+}
+
+html body.riotbar-present #riotbar-subbar .riotbar-subcontent {
+  padding: 0;
+}
+
+html body.riotbar-present #riotbar-account-bar .riotbar-account-arrow {
+  background-position: center;
+  height: 100%;
+  margin: 0;
+}
+
+html body.riotbar-present.with-locale-warning #riotbar-account-warning {
+  display: none;
+}
+@media screen and (max-width: 959px) {
+
+  html body.riotbar-present.with-locale-warning #riotbar-subbar-menu-container {
+    top: 40px;
+  }
+}
+@media screen and (max-width: 479px) {
+
+  html body.riotbar-present.with-locale-warning #riotbar-subbar-menu-container {
+    top: 60px;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+
+  html body .riotbar-base-element:not(.riotbar-mobile-responsive) .riotbar-pagewidth, html body .riotbar-base-element:not(.riotbar-not-responsive) .riotbar-pagewidth {
+    width: 100%;
+  }
+
+  html body .riotbar-base-element:not(.riotbar-mobile-responsive) #riotbar-game, html body .riotbar-base-element:not(.riotbar-not-responsive) #riotbar-game {
+    left: 4px;
+  }
+
+  html body .riotbar-base-element:not(.riotbar-mobile-responsive) #riotbar-account-anonymous ul.riotbar-nav li.link-signup, html body .riotbar-base-element:not(.riotbar-not-responsive) #riotbar-account-anonymous ul.riotbar-nav li.link-signup {
+    display: none;
+  }
+}
+@media screen and (max-width: 1023px) {
+
+  html body .riotbar-base-element:not(.riotbar-mobile-responsive) #riotbar-touchpoints ul, html body .riotbar-base-element:not(.riotbar-not-responsive) #riotbar-touchpoints ul {
+    font-size: 12px;
+  }
+
+  html body .riotbar-base-element:not(.riotbar-mobile-responsive) #riotbar-touchpoints ul.riotbar-nav li a, html body .riotbar-base-element:not(.riotbar-not-responsive) #riotbar-touchpoints ul.riotbar-nav li a {
+    padding: 0 0.2em;
+  }
+}
+@media screen and (max-width: 767px) {
+
+  html body .riotbar-base-element:not(.riotbar-mobile-responsive) #riotbar-touchpoints ul.riotbar-nav, html body .riotbar-base-element:not(.riotbar-not-responsive) #riotbar-touchpoints ul.riotbar-nav {
+    display: none;
+  }
+}

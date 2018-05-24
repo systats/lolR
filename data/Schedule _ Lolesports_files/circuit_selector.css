@@ -1,0 +1,157 @@
+
+#riotbar-circuit {
+  font-size: 12px;
+  float: right;
+  position: relative;
+}
+
+.riotbar-right-content > #riotbar-circuit {
+  border-left: 1px solid #262626;
+  height: 50px;
+  margin: 0;
+  padding: 10px;
+  padding-right: 0;
+}
+
+.circuit_selection #riotbar-circuit {
+  display: none;
+}
+
+#riotbar-circuit .flag {
+  color: #94724d;
+  cursor: pointer;
+  display: inline-block;
+  line-height: 16px;
+  padding-left: 20px;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+#riotbar-circuit.active #riotbar-circuit-list {
+  -webkit-transform: translateY(0);
+  -ms-transform: translateY(0);
+  transform: translateY(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+#riotbar-current-circuit {
+  cursor: pointer;
+  float: right;
+  padding-right: 16px;
+  position: relative;
+  text-transform: uppercase;
+}
+
+#riotbar-current-circuit .riotbar-current-circuit-wrapper {
+  float: left;
+}
+
+#riotbar-current-circuit .riotbar-current-circuit-trigger {
+  cursor: pointer;
+  position: absolute;
+  right: 0;
+}
+
+#riotbar-current-circuit .riotbar-current-circuit-trigger span {
+  background: url(https://cdn.leagueoflegends.com/riotbar/prod/1.4.6/images/bar/dropdown-trigger.png) no-repeat 50% 50%;
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+#riotbar-current-circuit .flag {
+  color: #d3c7a9;
+  display: block;
+  line-height: 32px;
+  max-width: 160px;
+  height: 100%;
+  padding: 0 0 0 42px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+  text-transform: uppercase;
+  font-size: 12px;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+#riotbar-circuit-list {
+  -webkit-transition: opacity 0.5s, transform 0.5s;
+  transition: opacity 0.5s, transform 0.5s;
+  -webkit-transform: translateY(-5%);
+  -ms-transform: translateY(-5%);
+  transform: translateY(-5%);
+  background: #111;
+  border-top: 2px solid #262626;
+  box-shadow: -3px 3px 6px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  overflow: hidden;
+  padding: 12px 12px 0;
+  position: absolute;
+  top: 50px;
+  right: -5px;
+  visibility: hidden;
+  z-index: 116;
+}
+
+#riotbar-circuit-list h6 {
+  color: #d3c7a9;
+  font-style: italic;
+  margin: 0 0 12px;
+  text-transform: uppercase;
+}
+
+#riotbar-circuit-list ul {
+  -webkit-column-count: 2;
+  -webkit-column-gap: 0;
+  -moz-column-count: 2;
+  -moz-column-gap: 0;
+  column-count: 2;
+  column-gap: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#riotbar-circuit-list ul > * {
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+#riotbar-circuit-list li {
+  display: block;
+}
+
+#riotbar-circuit-list .flag {
+  color: #93a3aa;
+  margin-bottom: 12px;
+  padding-right: 6px;
+  text-align: left;
+  text-decoration: none;
+}
+
+#riotbar-circuit-list .flag:hover {
+  color: #fff;
+}
+
+.riotbar-bar-content > #riotbar-circuit #riotbar-current-circuit {
+  background-color: #192D3A;
+  border: 1px solid #314148;
+  border-color: #314148 #2d3d42 #1f292c #232f33;
+  height: 40px;
+  background: -webkit-linear-gradient(top, #1F394B, #0D1417);
+  background: linear-gradient(to bottom, #1F394B, #0D1417);
+}
+
+.riotbar-bar-content > #riotbar-circuit .riotbar-current-circuit-wrapper {
+  padding: 4px 0 4px 14px;
+}
+
+.riotbar-bar-content > #riotbar-circuit #riotbar-circuit-list {
+  background-color: #020A0F;
+  border: 1px solid #0C2830;
+  border-top: none;
+  top: 40px;
+}
