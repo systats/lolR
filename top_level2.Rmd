@@ -31,12 +31,17 @@ get_dates <- function(month_nr, years){
     ),
     mnumber = 1:12
   ) %>% 
-    filter(mnumber %in% month_nr) %>% 
-    .$months %>% 
-    rep(., length(month_nr)) %>%  
-    paste(., years)
-  return(months)
+    filter(mnumber %in% month_nr)
+    
+  out <- expand.grid(months$months, years) %>% 
+      rename(month = Var1, year = Var2) %>%
+      split(1:nrow(.)) %>%
+      map_chr(~paste(.x$month, .x$year)) %>% 
+      as.character()
+  return(out)
 }
+
+get_dates(1:9, 2016:2018)
 
 leagues <- list(
   "challenge-france" = c(
@@ -63,25 +68,26 @@ unlist(leagues) %>% length
 
 leagues_url <- leagues %>% 
   map2(.x = ., .y = names(leagues), ~{
-    name <- .y
-    .x %>% 
+    tournament <- .y
+    urls <- .x %>% 
       str_split("\\s") %>% 
       map(~{
-        paste0(
+        url <- paste0(
           "https://eu.lolesports.com/en/schedule#slug=", 
-          name, 
+          tournament, 
           "&tab=results", 
           "&resultsMonth=", 
           .x[1], "%20", .x[2]
         )
+        return(tibble(tournament, year = .[2], month = .[1], url))
       }) %>% 
-      unlist()
+      purrr::reduce(bind_rows)
   }) %>% 
-  unlist() %>% 
-  as.character() %>% 
-  as.list()
-
-leagues_url[1:5]
+  purrr::reduce(bind_rows)
+ 
+leagues_url %>% 
+  count(url) %>% 
+  arrange(desc(n))
 ```
 
 
@@ -102,6 +108,19 @@ get_time <- function(html){
     html_text() %>% 
     str_replace("Approx", "") %>% 
     str_trim
+}
+
+"#fixtures > div:nth-child(1) > div.schedule__table > div:nth-child(1) > div.schedule__table-cell.schedule__table-cell--content > div > div > div:nth-child(2) > span.vs.vs--additional"
+
+get_rounds <- function(html){
+  html %>% 
+    .[2] %>% 
+    html_nodes("span") %>%
+    html_text() %>% 
+    .[stringr::str_detect(.,"Best of")] %>% 
+    str_extract("[[:digit:]]") %>%
+    as.numeric()
+    #paste(., collapse = " ")
 }
 
 get_teams <- function(html){
@@ -177,12 +196,17 @@ extract_matches_esport <- function(html){
           teams <- .x %>%
             html_children() %>% 
             get_teams
+          
+          rounds <- .x %>%
+            html_children() %>% 
+            get_rounds %>% 
+            ifelse(length(.) == 0, NA, .)
   
           game_link <- .x %>% 
             html_children() %>% 
             get_match_link()
           
-          return(tibble(time, game_link) %>% bind_cols(teams))
+          return(tibble(time, game_link, rounds) %>% bind_cols(teams))
         })
       
         ### append date per list of games a day
@@ -201,20 +225,20 @@ extract_matches_esport <- function(html){
   return(game_list)
 }
 
-match_list <- extract_matches_esport(html)
+#match_list <- extract_matches_esport(html)
 ```
 
 ```{r}
-match_list %>% 
-    reduce(bind_rows)
+#match_list %>% 
+#    reduce(bind_rows)
 ```
 
 
 ## Get Matches
 
 ```{r}
-rD <- rsDriver()
-remDr <- rD$client
+#rD <- rsDriver()
+#remDr <- rD$client
 # remDr$open()
 # 
 # base_url <- "https://eu.lolesports.com/en/schedule#slug=rift-rivals&tab=results"
@@ -234,35 +258,66 @@ remDr <- rD$client
 
 
 ```{r}
-get_matches <- function(url){
+rD <- rsDriver()
+remDr <- rD$client
+remDr$open()
+
+get_matches <- function(x){
   
-  remDr$navigate(url)
+  #url <- "https://eu.lolesports.com/en/schedule#slug=challenge-france&tab=results&resultsMonth=January%202017"
+  remDr$navigate(x$url)
   remDr$refresh()
+  #Sys.sleep(1)
   
   html <- remDr$getPageSource()[[1]] %>% 
     read_html
   
-  return(extract_matches_esport(html))
+  out <- extract_matches_esport(html) %>% 
+    purrr::reduce(bind_rows) %>% 
+    mutate(
+      year = x$year, 
+      month = x$month, 
+      event = x$tournament,
+      event_url = x$url
+    )
+  
+  return(out)
   
 }
 
 get_matches_safe <- purrr::safely(get_matches)
 get_matches_safe_pro <- tidyMBO::progressively(get_matches_safe, length(leagues_url))
 
+table(duplicated(leagues_url))
+
+
 leagues_matches <- leagues_url %>% 
+  split(1:nrow(.)) %>%
   map(get_matches_safe_pro)
 
 length(leagues_matches)
-# leagues_matches %>% 
-#   map("error")
+leagues_matches %>% 
+ map("error")
 
 
 match_esports <- leagues_matches %>% 
   map("result") %>% 
-  purrr::reduce(bind_rows) %>%
+  purrr::reduce(bind_rows)
   #arrange(game_link) %>% 
-  filter(!duplicated(game_link))
 
-save(match_esports, file = "data/match_esports.Rdata")
+glimpse(match_esports)
+# match_esports$rounds %>% sum
+# nrow(match_esports)
+# table(duplicated(match_esports$game_link))
+
+match_esports %>%
+filter(game_link == "/en/msi/msi_2018/match/2018-05-20/royal-never-give-up-vs-kingzone-dragonx")
+# dd <- match_esports %>%
+#   #filter(!duplicated(game_link)) %>% 
+#   count(game_link) %>% 
+#   arrange(desc(n))
+#   .$game_link#[1:10]
+# 
+#save(match_esports, file = "match_esports.Rdata")
 ```
 
