@@ -1,0 +1,203 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+## packages
+
+```{r}
+pacman::p_load(tidyverse, xml2, rvest, qdapRegex, magrittr)
+```
+
+
+## data
+
+
+```{r}
+load("data/match_esports.Rdata")
+
+match_esports %<>% 
+  mutate(game_link = paste0("https://eu.lolesports.com", game_link))
+```
+
+
+## helper function
+
+```{r}
+example_dat <- jsonlite::read_json("https://acs.leagueoflegends.com/v1/stats/game/FRA1TMNT2/260239?gameHash=7df11fb82c725f13")
+
+# clean_matches(example_dat)
+# 
+# x <- example_dat
+
+clean_matches <- function(x) {
+  
+  match_base <- x[1:10] %>% 
+    as_tibble() %>% 
+    janitor::clean_names() %>% 
+    mutate(date = anytime::anytime(gamecreation/1000)) #%>% 
+   # ifelse(is.null(.), NA, .)
+
+  match_details <- list(x$teams[[1]][1:15], x$teams[[2]][1:15]) %>%
+    reduce(bind_rows) %>% 
+   janitor::clean_names() %>% 
+   split(.$teamid) %>% 
+    map(~{
+      if(.x$teamid == 100){
+        colnames(.x) <- paste0("blue_", colnames(.x))
+        return(.x)
+      } else {
+        colnames(.x) <- paste0("red_", colnames(.x))
+        return(.x)
+      }
+    }) %>% 
+    reduce(bind_cols)# %>% 
+   # ifelse(is.null(.), NA, .)
+  
+  match_participants <- x$participants %>% 
+    purrr::map(~.x[1:5]) %>% 
+    bind_rows() #%>% 
+   # ifelse(is.null(.), NA, .) #%>% 
+    # list() %>%
+    # tibble(match_part = .)
+  
+  
+   match_stats <- 
+      x$participants %>% 
+      purrr::map(~.x[["stats"]]) %>% 
+      bind_rows() %>% 
+    mutate(win = ifelse(win, "Win", "Fail")) #%>% 
+   # ifelse(is.null(.), NA, .) #%>% 
+      # list() %>%
+      # tibble(match_part_details = .)
+
+   # match_masteries <- 
+   #    x$participants %>% 
+   #    purrr::map(~.x[["masteries"]]) %>% 
+   #    bind_rows()
+   # x$participants[[1]][["masteries"]] %>% bind_rows()
+     
+   # match_timeline <- 
+   #    x$participants %>% 
+   #    purrr::map(~.x[["timeline"]]) %>% 
+   #    bind_rows()
+   
+   
+  match_identities <- x$participantIdentities %>%
+    map(~.x[["player"]]) %>% 
+    bind_rows() %>% 
+    mutate(participantId = 1:10) #%>% 
+    #ifelse(is.null(.), NA, .)
+        
+   
+  player_stats <- match_identities %>% 
+    left_join(match_participants) %>% 
+    left_join(match_stats) %>%  
+      list() %>%
+      tibble(player_stats = .)
+
+
+  dat <- match_base %>% 
+    bind_cols(
+      match_details, 
+      player_stats
+    ) 
+
+  return(dat)
+}
+```
+
+
+
+
+
+
+
+## realo scraper
+
+```{r}
+
+get_ids <- function(x) {
+  
+  target_url <- read_html(x) %>% 
+  html_nodes(".button--nav") %>% 
+  html_attr("href") 
+  
+  match <- read_html(x) %>% 
+  html_nodes("title") %>% 
+  html_text()
+  
+  dat <- tibble(urls = str_replace(target_url, '.*match-details', ''),
+         match = match) %>% 
+    mutate(game_link = x)
+  
+  
+  return(dat)
+}
+
+
+
+get_ids_save <- safely(tidyMBO::progressively(get_ids, .n = nrow(match_esports)))
+
+api_links <- match_esports %>% 
+ # filter(type != "final") %>% 
+  .$game_link %>%
+  purrr::map(get_ids_save)
+  
+glimpse(api_links)
+
+save(api_links, file = "data/api_links.Rdata")
+
+load("data/api_links.Rdata")
+
+base_url <- "https://acs.leagueoflegends.com/v1/stats/game"
+
+scrape_links <- api_links %>% 
+  map("result") %>% 
+  bind_rows() %>% 
+  mutate(urls = str_replace(paste0(base_url, urls), '.*match-details', '')) %>% 
+  filter(!str_detect(urls, "undefined")) %>% 
+  filter(str_detect(urls, "gameHash"))
+  
+
+
+get_match_details <- function(x) {
+  Sys.sleep(3)
+  raw <- jsonlite::read_json(x)
+  return(clean_matches(raw))
+}
+
+
+get_save_details <- safely(tidyMBO::progressively(get_match_details, 
+                                                  .n = length(scrape_links)))
+
+gamedetails <- scrape_links$urls %>% 
+  purrr::map(get_save_details)
+
+
+scrape_ids <- scrape_links %>% 
+  mutate(gameid = str_replace(urls, '.*game/', '')) %>% #select(gameid) %>% as.character()
+  mutate(gameid = str_replace(gameid, '\\?.*', '')) %>% 
+  mutate(gameid = str_replace(gameid, '.*/', '')) %>% 
+  mutate(gameid = as.integer(gameid)) %>% 
+  tidyr::separate(match, 
+                  into = c("blue_team", "red_team"), 
+                  remove = F, sep = " VS ") %>% 
+  mutate(red_team = str_replace(red_team, " \\| LoL Esports", ""))
+
+gamedetails %>%
+  map("error") %>% 
+  bind_rows() %>% 
+  left_join(scrape_ids) %>% 
+  select(gameid, date, blue_team, red_team, blue_win, red_win, everything()) 
+
+
+# match <- read_html("https://eu.lolesports.com/en/msi/msi_2018/match/2018-05-15/evos-esports-vs-royal-never-give-up") %>% 
+#   html_nodes("title") %>% 
+#   html_text()
+
+gamedetails[[2]]
+  
+```
