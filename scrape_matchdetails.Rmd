@@ -19,7 +19,10 @@ pacman::p_load(tidyverse, xml2, rvest, qdapRegex, magrittr)
 load("data/match_esports.Rdata")
 
 match_esports %<>% 
-  mutate(game_link = paste0("https://eu.lolesports.com", game_link))
+  mutate(game_link = paste0("https://eu.lolesports.com", game_link)) %>% 
+  rename(blue_team_abb = blue_team) %>% 
+  rename(red_team_abb = red_team) %>% 
+  select(-date, -time)
 ```
 
 
@@ -28,7 +31,7 @@ match_esports %<>%
 ```{r}
 example_dat <- jsonlite::read_json("https://acs.leagueoflegends.com/v1/stats/game/FRA1TMNT2/260239?gameHash=7df11fb82c725f13")
 
-# clean_matches(example_dat)
+clean_matches(example_dat)
 # 
 # x <- example_dat
 
@@ -36,24 +39,8 @@ clean_matches <- function(x) {
   
   match_base <- x[1:10] %>% 
     as_tibble() %>% 
-    janitor::clean_names() %>% 
+    janitor::clean_names(.) %>% 
     mutate(date = anytime::anytime(gamecreation/1000)) #%>% 
-   # ifelse(is.null(.), NA, .)
-
-  match_details <- list(x$teams[[1]][1:15], x$teams[[2]][1:15]) %>%
-    reduce(bind_rows) %>% 
-   janitor::clean_names() %>% 
-   split(.$teamid) %>% 
-    map(~{
-      if(.x$teamid == 100){
-        colnames(.x) <- paste0("blue_", colnames(.x))
-        return(.x)
-      } else {
-        colnames(.x) <- paste0("red_", colnames(.x))
-        return(.x)
-      }
-    }) %>% 
-    reduce(bind_cols)# %>% 
    # ifelse(is.null(.), NA, .)
   
   match_participants <- x$participants %>% 
@@ -94,15 +81,39 @@ clean_matches <- function(x) {
    
   player_stats <- match_identities %>% 
     left_join(match_participants) %>% 
-    left_join(match_stats) %>%  
-      list() %>%
-      tibble(player_stats = .)
+    left_join(match_stats) %>%
+    mutate(team_abb = stringr::str_extract(summonerName, "^\\w+")) %>% 
+    mutate(summonerName = stringr::str_replace(summonerName, "^\\w+", "")) 
+
+
+  team_abbs <- player_stats %>% 
+    .[c(1, nrow(.)),] %>% 
+    select(teamId, team_abb)
+  
+  match_details <- list(x$teams[[1]][1:15], x$teams[[2]][1:15]) %>%
+    reduce(bind_rows) %>% 
+    left_join(team_abbs) %>% 
+   janitor::clean_names(.) %>% 
+   split(.$teamid) %>% 
+    map(~{
+      if(.x$teamid == 100){
+        colnames(.x) <- paste0("blue_", colnames(.x))
+        return(.x)
+      } else {
+        colnames(.x) <- paste0("red_", colnames(.x))
+        return(.x)
+      }
+    }) %>% 
+    reduce(bind_cols)# %>% 
+   # ifelse(is.null(.), NA, .)
 
 
   dat <- match_base %>% 
     bind_cols(
       match_details, 
-      player_stats
+      player_stats %>% 
+        list() %>%
+        tibble(player_stats = .)
     ) 
 
   return(dat)
@@ -173,7 +184,7 @@ get_match_details <- function(x) {
 get_save_details <- safely(tidyMBO::progressively(get_match_details, 
                                                   .n = length(scrape_links)))
 
-gamedetails <- scrape_links$urls %>% 
+gamedetails <- scrape_links$urls[1:10] %>% 
   purrr::map(get_save_details)
 
 
@@ -182,16 +193,46 @@ scrape_ids <- scrape_links %>%
   mutate(gameid = str_replace(gameid, '\\?.*', '')) %>% 
   mutate(gameid = str_replace(gameid, '.*/', '')) %>% 
   mutate(gameid = as.integer(gameid)) %>% 
-  tidyr::separate(match, 
-                  into = c("blue_team", "red_team"), 
-                  remove = F, sep = " VS ") %>% 
-  mutate(red_team = str_replace(red_team, " \\| LoL Esports", ""))
+  tidyr::separate(match,
+                  into = c("blue_team", "red_team"),
+                  remove = F, sep = " VS ") %>%
+  mutate(red_team = str_replace(red_team, " \\| LoL Esports", "")) 
+
+nn <- scrape_ids %>%
+  group_by(game_link) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  left_join(match_esports) %>% 
+  select(blue_team, blue_team_abb, red_team, red_team_abb) 
+
+team_dict <- bind_rows(
+nn %>% 
+  select(team = blue_team, abb = blue_team_abb),
+nn %>% 
+  select(team = red_team, abb = red_team_abb)
+) %>% 
+  mutate(team = str_trim(team)) %>% 
+  mutate(abb = str_trim(abb)) %>% 
+  filter(!duplicated(team)) %>% 
+  filter(!duplicated(abb)) 
+  
+
+
+
 
 gamedetails %>%
-  map("error") %>% 
+  map("result") %>% 
   bind_rows() %>% 
-  left_join(scrape_ids) %>% 
-  select(gameid, date, blue_team, red_team, blue_win, red_win, everything()) 
+  left_join(scrape_ids %>% 
+              select(-blue_team, -red_team)) %>% 
+  left_join(team_dict, by = c("blue_team_abb" = "abb")) %>% 
+  rename(blue_team = team) %>% 
+  left_join(team_dict, by = c("red_team_abb" = "abb")) %>% 
+  rename(red_team = team) %>% 
+  select(gameid, date, blue_team, blue_team_abb, red_team, red_team_abb,
+         blue_win, red_win, everything()) -> match_data
+
+
 
 
 # match <- read_html("https://eu.lolesports.com/en/msi/msi_2018/match/2018-05-15/evos-esports-vs-royal-never-give-up") %>% 
@@ -199,5 +240,87 @@ gamedetails %>%
 #   html_text()
 
 gamedetails[[2]]
+
+save(match_data, file = "data/match_data.Rdata")
+
+
+
+
+
+load("data/match_data.Rdata")
   
+
+match_data$player_stats[[1]]
 ```
+
+
+
+
+
+
+## check out whoso missing
+
+```{r}
+load("data/match_stats.Rdata")
+
+unknowns <- match_stats %>%
+  mutate(gameid = as.integer(gameid)) %>% 
+  group_by(gameid) %>% 
+  slice(1) %>% 
+  anti_join(match_data, by = "gameid") %>% 
+  mutate(urls = str_replace(url, '.*match-details', '')) %>% 
+  mutate(urls = str_replace(paste0(base_url, urls), "&tab=overview", ''))
+
+get_match_details <- function(x) {
+  Sys.sleep(3)
+  raw <- jsonlite::read_json(x)
+  return(clean_matches(raw))
+}
+
+
+get_save_details <- safely(tidyMBO::progressively(get_match_details, 
+                                                  .n = nrow(unknowns)))
+
+gamedetails <- unknowns$urls %>% 
+  purrr::map(get_save_details)
+
+
+
+
+
+
+
+gamedetails %>%
+  map("result") %>% 
+  bind_rows() -> missing_data
+  # left_join(scrape_ids %>% 
+  #             select(-blue_team, -red_team)) %>% 
+  # left_join(team_dict, by = c("blue_team_abb" = "abb")) %>% 
+  # rename(blue_team = team) %>% 
+  # left_join(team_dict, by = c("red_team_abb" = "abb")) %>% 
+  # rename(red_team = team) %>% 
+  # select(gameid, date, blue_team, blue_team_abb, red_team, red_team_abb,
+  #       blue_win, red_win, everything()) 
+
+
+missing_data %>% 
+  left_join(team_dict, by = c("blue_team_abb" = "abb")) %>% 
+  rename(blue_team = team) %>% 
+  left_join(team_dict, by = c("red_team_abb" = "abb")) %>% 
+  rename(red_team = team) %>% 
+  select(gameid, date, blue_team, blue_team_abb, red_team, red_team_abb,
+         blue_win, red_win, everything()) 
+
+
+# match <- read_html("https://eu.lolesports.com/en/msi/msi_2018/match/2018-05-15/evos-esports-vs-royal-never-give-up") %>% 
+#   html_nodes("title") %>% 
+#   html_text()
+
+gamedetails[[2]]
+
+save(match_data, file = "data/missing_data.Rdata")
+
+# 
+# read_csv("data/hoaxy_visualization.csv")
+```
+
