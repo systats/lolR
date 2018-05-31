@@ -110,8 +110,6 @@ get_time <- function(html){
     str_trim
 }
 
-"#fixtures > div:nth-child(1) > div.schedule__table > div:nth-child(1) > div.schedule__table-cell.schedule__table-cell--content > div > div > div:nth-child(2) > span.vs.vs--additional"
-
 get_rounds <- function(html){
   html %>% 
     .[2] %>% 
@@ -305,10 +303,11 @@ match_esports <- leagues_matches %>%
   purrr::reduce(bind_rows)
   #arrange(game_link) %>% 
 
-glimpse(match_esports)
+load("match_esports.Rdata")
+dplyr::glimpse(match_esports)
 # match_esports$rounds %>% sum
 # nrow(match_esports)
-# table(duplicated(match_esports$game_link))
+table(duplicated(match_esports$game_link))
 
 match_esports %>%
 filter(game_link == "/en/msi/msi_2018/match/2018-05-20/royal-never-give-up-vs-kingzone-dragonx")
