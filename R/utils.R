@@ -8,6 +8,7 @@ save_it <- function(x){
     dir.create("data")
   }
   save(x, file = paste0("data/", deparse(substitute(x)), ".Rdata"))
+  message(paste0("File was saved under: data/", deparse(substitute(x)), ".Rdata"))
 }
 #save_it(base_html)
 
@@ -22,4 +23,19 @@ progressively <- function(.f, .n, ...) {
     pb$tick()
     .f(...)
   }
+}
+
+#' str_extract_href
+#'
+#' extract hyperlink
+#'
+#' @export
+str_extract_href <- function(x, append = F){
+  x <- x %>% 
+    as.character() %>%
+    stringr::str_extract('href=\".*?\"') %>% 
+    stringr::str_replace_all('href=|\"', '')
+  
+  if(append) x <- paste0("https://lol.gamepedia.com", x)
+  return(x)
 }

@@ -23,8 +23,7 @@ get_match_data <- function(x){
   
   patch_link <-prep %>% 
     .[2] %>% 
-    str_extract_href() %>% 
-    paste0(base_url, .) 
+    str_extract_href(append = T)
   
   blue_team <- prep %>% 
     .[3] %>% 
@@ -33,8 +32,7 @@ get_match_data <- function(x){
   
   blue_team_link <- prep %>% 
     .[3] %>% 
-    str_extract_href() %>% 
-    paste0(base_url, .)
+    str_extract_href(append = T) 
   
   red_team <- prep %>% 
     .[4] %>% 
@@ -43,8 +41,7 @@ get_match_data <- function(x){
   
   red_team_link <- prep %>% 
     .[4] %>% 
-    str_extract_href() %>% 
-    paste0(base_url, .)
+    str_extract_href(append = T)
   
   win <- prep %>% 
     .[5] %>% 

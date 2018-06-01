@@ -10,7 +10,7 @@ get_match_stats(x)
 \item{x}{html_node}
 }
 \value{
-tibble(duration, blue_gold, blue_kills, blue_teamkills, blue_deths, blue_baron, blue_herald, red_gold, red_kills, red_teamkills, red_deaths, red_baron, red_herald, d_gold, d_kills, d_teamkills, d_deaths, d_baron, d_herald)
+tibble(duration, blue_gold, blue_kills, blue_teamkills, blue_deaths, blue_baron, blue_herald, red_gold, red_kills, red_teamkills, red_deaths, red_baron, red_herald, d_gold, d_kills, d_teamkills, d_deaths, d_baron, d_herald)
 }
 \description{
 Get match stats (not error handled)

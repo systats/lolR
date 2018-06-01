@@ -7,14 +7,23 @@
 #' @export
 
 get_match_history <- function(x){
-  match_data <- suppressWarnings(get_match_data(x))
-  player_stats <- suppressWarnings(get_player_stats(x)) 
-  match_stats <- suppressWarnings(get_match_stats(x))
-  match_meta <- suppressWarnings(get_match_meta(x))
+  
+  # x <- tourn_table_long[1, ] %>% 
+  #   .$tourn_url %>% 
+  #   xml2::read_html() %>%
+  #   html_nodes(".wikitable") %>% 
+  #   html_children() %>% 
+  #   .[3:(length(.)-1)] %>% 
+  #   .[1] # map index
+
+  match_data <- suppressWarnings(lolR::get_match_data(x))
+  player_stats <- suppressWarnings(lolR::get_player_stats(x)) 
+  match_stats <- suppressWarnings(lolR::get_match_stats(x))
+  match_meta <- suppressWarnings(lolR::get_match_meta(x))
   
   matches <- match_data %>% 
-    bind_cols(tibble(players = list(player_stats))) %>%
-    bind_cols(match_stats, match_meta)
+    dplyr::bind_cols(tibble::tibble(players = list(player_stats))) %>%
+    dplyr::bind_cols(match_stats, match_meta)
   return(matches)
 }
 
@@ -36,9 +45,9 @@ get_match_history_safely <- purrr::safely(get_match_history)
 #' @export
 get_tournament_matches <- function(x){
   x %>%     
-    html_nodes(".wikitable") %>% 
-    html_children() %>% 
+    rvest::html_nodes(".wikitable") %>% 
+    rvest::html_children() %>% 
     .[3:(length(.)-1)] %>% 
     #.[1] # map index
-    map(get_match_history_safely)
+    purrr::map(~lolR::get_match_history_safely(.x))
 }

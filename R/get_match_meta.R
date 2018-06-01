@@ -9,12 +9,6 @@
 
 get_match_meta <- function(x){
   
-  # scoreboard <- x %>%
-  #   html_children() %>%
-  #   .[31] %>% 
-  #   str_extract_href() %>% 
-  #   paste0(base_url, .)
-  
   prep <- x %>%
     html_children()
   
@@ -25,7 +19,7 @@ get_match_meta <- function(x){
   api_base <- "https://acs.leagueoflegends.com/v1/stats/game"
   
   api_url <- match_url %>% 
-    str_replace_all('.*match-details|&amp;tab=overview', '') %>% 
+    str_replace_all('.*match-details|&amp;tab=overview|%.*?$', '') %>% 
     paste0(api_base, .) %>% 
     ifelse(is.null(.), NA, .)
   

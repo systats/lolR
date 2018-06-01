@@ -13,5 +13,8 @@ Imports:
     progress,
     rvest,
     xml2,
-    stringr
+    stringr,
+    anytime, 
+    tidyr, 
+    tibble
 RoxygenNote: 6.0.1

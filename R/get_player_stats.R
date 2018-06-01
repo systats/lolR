@@ -54,7 +54,7 @@ get_player_stats <- function(x){
     html_children() %>% 
     map(
       ~ str_extract_href(.x) %>% 
-        paste0(base_url, .)
+        paste0("https://lol.gamepedia.com", .)
     ) %>% 
     unlist()
   
@@ -69,7 +69,7 @@ get_player_stats <- function(x){
     html_children() %>% 
     map(
       ~ str_extract_href(.x) %>% 
-        paste0(base_url, .)
+        paste0("https://lol.gamepedia.com", .)
     ) %>% 
     unlist()
   
