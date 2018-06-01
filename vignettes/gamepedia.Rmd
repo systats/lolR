@@ -1,0 +1,185 @@
+---
+title: "LOL Predictions"
+output: html_notebook
+---
+
+* DJT popularity likes twitter 
+
+![](tw_01.jpg)
+
+
+## Packages
+
+```{r}
+pacman::p_load(dplyr, ggplot2, rvest, purrr, xml2, stringr)
+```
+
+
+## Base Scraper
+
+Helper Functions
+
+```{r}
+base_url <- "https://lol.gamepedia.com"
+
+str_extract_href <- function(x, append = F){
+  x <- x %>% 
+    as.character() %>%
+    stringr::str_extract('href=\".*?\"') %>% 
+    stringr::str_replace_all('href=|\"', '')
+  
+  if(append) x <- paste0(base_url, x)
+  return(x)
+}
+```
+
+## Example Data
+
+```{r}
+example_url <- paste0("https://lol.gamepedia.com/Special:RunQuery/MatchHistoryTournament?MHT%5Btournament%5D=Concept:", "MSI%202018", "%20Main%20Event&MHT%5Btext%5D=Yes&pfRunQueryFormName=MatchHistoryTournament")
+
+# example_url <- "https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Match_History"
+# 
+
+example_html <- example_url %>% 
+  xml2::read_html()
+
+x <- example_html %>% 
+  html_nodes(".wikitable") %>% 
+  html_children() %>% 
+  .[3:(length(.)-1)] %>% 
+  .[25] # map index
+```
+
+
+## Match Data
+
+```{r}
+get_match_data(x)%>% glimpse
+```
+
+
+## Player Stats
+
+```{r}
+get_player_stats(x) %>% glimpse
+```
+
+
+## Match Stats
+
+### Compare to Oracleelex.
+
+```{r}
+load("data/match_stats.Rdata")
+match_stats %>% glimpse()
+```
+
+
+```{r}
+stats_names <- example_html %>% 
+  html_nodes(".wikitable") %>% 
+  html_children() %>% 
+  .[2] %>% 
+  html_text() %>% 
+  stringr::str_split("\\n+") %>% 
+  unlist() %>% 
+  stringr::str_trim()
+
+stats_names
+```
+
+
+```{r}
+stats_names[12:30] %>% dput
+
+get_match_stats(x) %>% glimpse()
+```
+
+
+## TODO 
+
+* [Runes incl. Position and Items (**by Tournament**) and TEam abbrevs](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Runes)
+* [Champion Aggregates](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Statistics/Champions)    
+* [Player Aggregates](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Statistics/Players)
+* [Player Profiles](https://lol.gamepedia.com/Bwipo)
+    + Champion by and Tournament Plyer Stats
+    + Match History
+* [Team Rosters (no clue)](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Team_Rosters)
+* [Picks and Bans](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Picks_and_Bans)
+
+
+## Meta Data
+
+```{r}
+get_match_meta(x) %>% glimpse()
+```
+
+
+## combine stats
+
+```{r}
+get_match_history(x) %>% glimpse
+```
+
+
+## Map Over Games
+
+```{r}
+nn <- example_html %>% 
+  html_nodes(".wikitable") %>% 
+  html_children() %>% 
+  .[3:(length(.)-1)] %>% 
+  #.[1] # map index
+  map(get_match_history_safely)
+
+
+nn %>% 
+  map("result") %>% 
+  bind_rows()
+```
+
+
+## Map Over Tournaments
+
+```{r}
+tournament_url <- "https://lol.gamepedia.com/Special:RunQuery/MatchHistoryTournament?MHT%5Btournament%5D=Concept:CK%202017%20Spring%20Playoffs&MHT%5Btext%5D=Yes&pfRunQueryFormName=MatchHistoryTournament"
+
+tournament_list <- read_html(tournament_url) %>%
+  html_node(".inputSpan") %>%
+  html_children() %>%
+  html_children() %>%#
+  html_text() %>%
+  .[-1] %>%
+  str_replace_all(., "\\s", "%20") %>%
+  paste0(base_url,"/", "Special:RunQuery/MatchHistoryTournament?MHT%5Btournament%5D=", ., "&MHT%5Btext%5D=Yes&pfRunQueryFormName=MatchHistoryTournament")
+```
+
+
+```{r}
+get_tournament_matches_pro <- progressively(get_tournament_matches, 10)
+
+gamepedia_list <- tournament_list[1:10] %>% 
+  as.list() %>% 
+  map(~{
+    .x %>% 
+      xml2::read_html() %>% 
+      get_tournament_matches_pro
+  })
+
+#gamepedia_list
+#gamepedia_list %>% glimpse(max.depth = 2)
+
+gamepedia <- gamepedia_list %>% 
+  map(~{
+    .x %>% 
+      map("result") %>% 
+      bind_rows()
+  }) %>% 
+  bind_rows 
+
+gamepedia %>% 
+  count(is.na(game_hash))
+  
+table(is.na(gamepedia))
+```

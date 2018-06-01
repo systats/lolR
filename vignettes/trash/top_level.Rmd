@@ -1,0 +1,267 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## packages
+
+```{r}
+pacman::p_load(dplyr, ggplot2, rvest, xml2, stringr, purrr, RSelenium, wdman, seleniumPipes)
+```
+
+
+## Tournaments
+
+```{r}
+get_dates <- function(month_nr, years){
+  months <- tibble(
+    months = c(
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ),
+    mnumber = 1:12
+  ) %>% 
+    filter(mnumber %in% month_nr) %>% 
+    .$months %>% 
+    rep(., length(month_nr)) %>%  
+    paste(., years)
+  return(months)
+}
+
+leagues <- list(
+  "challenge-france" = c(
+    "November 2016", 
+    "January 2017", 
+    "February 2017", 
+    "March 2017", 
+    "November 2017", 
+    "December 2017"
+  ),
+  "eu-lcs" = get_dates(1:9, 2016:2018),
+  "na-lcs" = get_dates(1:9, 2016:2018),
+  "lck" = get_dates(1:9, 2016:2018),
+  "lpl-china" = get_dates(1:9, 2016:2018),
+  "eu-cs" = get_dates(1:8, 2016:2017),
+  "na-cs" = get_dates(1:7, 2016:2017),
+  "worlds" = get_dates(9:12, 2015:2018),
+  "msi" = get_dates(4:5, 2016:2018),
+  "all-star" = get_dates(12, 2016:2018),
+  "rift-rivals" = get_dates(7, 2017:2018)
+)
+
+unlist(leagues) %>% length
+
+leagues_url <- leagues %>% 
+  map2(.x = ., .y = names(leagues), ~{
+    name <- .y
+    .x %>% 
+      str_split("\\s") %>% 
+      map(~{
+        paste0(
+          "https://eu.lolesports.com/en/schedule#slug=", 
+          name, 
+          "&tab=results", 
+          "&resultsMonth=", 
+          .x[1], "%20", .x[2]
+        )
+      }) %>% 
+      unlist()
+  }) %>% 
+  unlist() %>% 
+  as.character() %>% 
+  as.list()
+
+leagues_url[1:5]
+```
+
+
+
+## Base Scraper 
+
+```{r}
+get_date <- function(html){
+  html %>% 
+    .[1] %>% # index to map over
+    html_node("h2") %>% 
+    html_text()
+}
+
+get_time <- function(html){
+  html %>% 
+    .[1] %>% 
+    html_text() %>% 
+    str_replace("Approx", "") %>% 
+    str_trim
+}
+
+get_teams <- function(html){
+  
+  links <- html %>% 
+    .[2] %>% 
+    html_nodes("a")
+  
+  # team_url <- links %>% 
+  #   .[c(1,3)] %>% 
+  #   as.character() %>% 
+  #   str_extract('/en/team/.*?\\"') %>% 
+  #   str_replace('\"', '') %>% 
+  #   ifelse(is.null(.), NA, .)
+  
+  team_logo <- links %>% 
+    .[c(1,3)] %>% 
+    as.character() %>% 
+    str_extract("https?[:]//[[:graph:]]+") %>% 
+    str_replace('\"', '')
+  
+  team <- links %>% 
+    .[c(2,4)] %>% 
+    html_text()
+  
+  team_blue <- tibble(team, team_logo)[1,]
+  colnames(team_blue) <- paste0("blue_", colnames(team_blue))
+  
+  team_red <- tibble(team, team_logo)[2,] 
+  colnames(team_red) <- paste0("red_", colnames(team_red))
+  
+  return(bind_cols(team_blue, team_red))
+}
+
+get_match_link <- function(html){
+  html %>% 
+    .[3] %>% 
+    #html_children()
+    html_nodes("a") %>% 
+    as.character() %>% 
+    str_extract('href=\\".*?\\"') %>% 
+    str_replace_all('href=\\"|\\"', '')
+}
+```
+
+
+
+
+## Scrape Matches
+
+```{r}
+extract_matches_esport <- function(html){
+  
+  game_list <- html %>% 
+    # html_node("body") %>% 
+    # html_node("main") %>% 
+    ### results table level
+    html_node("#results") %>% 
+    html_children() %>%
+    ### Need Iterator over date/tournaments
+    purrr::map(~{
+      main <- .x %>% 
+        html_children() %>% 
+        .[2] %>% 
+        html_children() %>% 
+        ### Event level (Day/ Tournament)
+        map(~{
+          
+          time <- .x %>%
+            html_children() %>% 
+            get_time
+          
+          teams <- .x %>%
+            html_children() %>% 
+            get_teams
+  
+          game_link <- .x %>% 
+            html_children() %>% 
+            get_match_link()
+          
+          return(tibble(time, game_link) %>% bind_cols(teams))
+        })
+      
+        ### append date per list of games a day
+        out <- main %>% 
+          purrr::reduce(bind_rows) %>%
+          dplyr::mutate(
+            date = .x %>% 
+              html_children() %>% 
+              .[1] %>% 
+              get_date
+          )
+        
+        return(out)
+    })
+  
+  return(game_list)
+}
+
+match_list <- extract_matches_esport(html)
+```
+
+```{r}
+match_list %>% 
+    reduce(bind_rows)
+```
+
+
+## Get Matches
+
+```{r}
+rD <- rsDriver()
+remDr <- rD$client
+# remDr$open()
+# 
+# base_url <- "https://eu.lolesports.com/en/schedule#slug=rift-rivals&tab=results"
+# 
+# base_html <- base_url %>% 
+#   read_html()
+# 
+# remDr$navigate(base_url)
+# base_html2 <- remDr$getPageSource()[[1]] %>% 
+#   read_html
+# 
+# match_list <- extract_matches_esport(base_html2)
+# 
+# match_list %>% 
+#   purrr::reduce(bind_rows)
+```
+
+
+```{r}
+get_matches <- function(url){
+  
+  remDr$navigate(url)
+  remDr$refresh()
+  
+  html <- remDr$getPageSource()[[1]] %>% 
+    read_html
+  
+  return(extract_matches_esport(html))
+  
+}
+
+get_matches_safe <- purrr::safely(get_matches)
+get_matches_safe_pro <- tidyMBO::progressively(get_matches_safe, length(leagues_url[1:50]))
+
+leagues_matches <- leagues_url[1:50] %>% 
+  map(get_matches_safe_pro)
+
+length(leagues_matches)
+leagues_matches %>% 
+  map("error")
+
+
+nn <- leagues_matches %>% 
+  map("result") %>% 
+  purrr::reduce(bind_rows) %>%
+  #arrange(game_link) %>% 
+  filter(!duplicated(game_link))
+nn$game_link
+```
+

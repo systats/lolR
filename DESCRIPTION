@@ -1,11 +1,17 @@
 Package: lolR
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Data Sourcing
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
-Encoding: UTF-8
-LazyData: true
+Author: look one line down
+Maintainer: Simon Roth <sy-ro@gmx.net> and Fabio Votta <favoone@gmx.de>
+Description: A pet project
+License: Please do not sue us!
+Imports: 
+    dplyr,
+    magrittr,
+    purrr,
+    progress,
+    rvest,
+    xml2,
+    stringr
+RoxygenNote: 6.0.1

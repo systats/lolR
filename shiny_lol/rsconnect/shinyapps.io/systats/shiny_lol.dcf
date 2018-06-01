@@ -1,0 +1,13 @@
+name: shiny_lol
+title: shiny_lol
+username:
+account: systats
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 348988
+bundleId: 1396573
+url: https://systats.shinyapps.io/shiny_lol/
+when: 1527511968.27441
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: data/wmap.Rdata|data/world-continents.geo.json|data/world-palestine-lowres.geo.json|data/world.Rdata
