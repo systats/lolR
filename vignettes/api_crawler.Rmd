@@ -1,0 +1,76 @@
+---
+title: "API Crawler"
+output: html_notebook
+---
+
+![](tw_01.jpg)
+
+
+## Packages
+
+```{r}
+pacman::p_load(dplyr, ggplot2, rvest, purrr, xml2, stringr, anytime, magrittr, tidyr, tibble, devtools, jsonlite)
+devtools::load_all()
+```
+
+
+## Load Tournament Data
+
+```{r}
+load("data/matches.Rdata")
+matches %>%
+  count(game_id)
+```
+
+
+## Scrape API
+
+Filter for known API ids
+
+```{r}
+matches_complet <- matches %>% 
+  filter(!duplicated(game_id)) %>%
+  filter(
+    !is.na(game_id),
+    !is.na(game_hash),
+    !is.na(tournament_id)
+  )
+```
+
+download json file per game
+
+```{r}
+download_json <- function(x){
+  json_file <- x$api_url %>%
+    httr::GET() %>%
+    httr::content(., "text", encoding = "UTF-8")
+  
+  cat("\n Content avaible? ")
+  cat(!is.null(json_file))
+  cat(" ")
+  cat("for ")
+  cat(x$game_id)  
+  
+  if(!is.null(json_file)){
+    raw <- jsonlite::fromJSON(json_file)
+    # json_file <- jsonlite::toJSON(raw)
+    write(json_file, file = paste0("data/games/game_", raw$gameId, ".json"))
+  }
+}
+
+download_json_pos <- purrr::possibly(download_json, otherwise = NULL)
+download_json_pro <- lolR::progressively(download_json_pos, nrow(matches_complet))
+
+matches_complet %>% 
+  split(1:nrow(.)) %>%
+  #.$[1:2] %>% 
+  walk(~download_json_pro(.x))
+```
+
+
+```{r}
+jsonlite::read_json("data/games/game_670035.json")
+```
+
+
+* [Athor Jason APIS](https://cran.r-project.org/web/packages/jsonlite/vignettes/json-apis.html)

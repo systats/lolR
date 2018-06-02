@@ -1,0 +1,121 @@
+---
+title: "Merge Data"
+output: html_notebook
+---
+
+![](tw_01.jpg)
+
+
+## Packages
+
+```{r}
+pacman::p_load(dplyr, ggplot2, rvest, purrr, xml2, stringr, anytime, magrittr, tidyr, tibble, devtools)
+devtools::load_all()
+```
+
+
+## Load Data
+
+```{r}
+load("data/matches_acs.Rdata")
+load("data/matches.Rdata")
+```
+
+
+## Reorganize Gamepedia data
+
+```{r}
+glimpse(matches)
+```
+
+
+```{r}
+matches_gp <- matches %>% 
+  dplyr::select(
+    gp_date = date,
+    gp_patch = patch, 
+    gp_patch_link = patch_link,
+    gp_win = win,
+    blue_team, blue_team_link, red_team, red_team_link,
+    players, 
+    blue_gold,
+    red_gold,
+    contains("tourn"),
+    game_id, game_hash, match_url, api_url, vod
+  ) %>% 
+  mutate(gp_patch = ifelse(gp_patch == "-", NA, gp_patch)) %>% 
+  mutate(game_id = as.integer(game_id))
+
+matches_gp %>% glimpse
+```
+
+## Merge matches_gp and matches_acs
+
+```{r}
+lol_matches <- matches_gp %>% 
+  left_join(matches_acs)
+```
+
+
+## Explore Data
+
+
+How many with game id?
+
+```{r}
+lol_matches %>% 
+  count(is.na(game_id))
+```
+
+```{r}
+lol_matches_complete <- lol_matches %>% 
+  filter(!is.na(game_id) & !is.na(player_stats))
+
+
+join_player <- function(x){
+  x$players[[1]] %>% 
+    ### naming inconsistency!!!
+    #rename(red_players = red_player, blue_players = blue_player) %>%
+    #right_join(x$players[[1]])
+    bind_cols(x$player_stats[[1]])
+}
+  
+join_player_safely <- purrr::safely(join_player)
+
+joined_player <- lol_matches_complete %>% 
+  split(1:nrow(.)) %>%
+  map(join_player_safely)
+
+# joined_player %>% 
+#   map("error")
+
+lol_matches_complete$player_final <- joined_player %>% 
+  map("result")
+
+lol_matches_complete <- lol_matches_complete %>% 
+  select(-players, -player_stats)
+
+save(lol_matches_complete, file = "data/lol_matches_complete.RData")
+glimpse(lol_matches_complete)
+
+lol_matches_complete$players[[1]]
+lol_matches_complete$player_stats[[1]]
+lol_matches_complete$player_final[[1]]
+
+# nn <- lol_matches_complete %>% 
+#   split(1:nrow(.)) %>%
+#   map_int({~ .x$player_final[[1]] %>% 
+#       .$red_champion_id %>% is.na() %>% 
+#       ifelse(is.null(.), NA, .) %>%
+#       table()[1]
+#   })
+# 
+# 
+# .x$player_final[[1]] %>% 
+#       .$red_champion_id %>% is.na() %>% 
+#       table()[1]
+
+lol_matches_complete$player_final[[1]] %>% 
+  select(contains("player")) %>% 
+  glimpse()
+```

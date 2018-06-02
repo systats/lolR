@@ -1,0 +1,479 @@
+---
+title: "LOL Predictions"
+output: html_notebook
+---
+
+* DJT popularity likes twitter 
+
+![](tw_01.jpg)
+
+
+## Packages
+
+```{r}
+pacman::p_load(dplyr, ggplot2, rvest, purrr, xml2, stringr, anytime, magrittr)
+```
+
+
+## Crawler
+
+Helper Functions
+
+```{r}
+base_url <- "https://lol.gamepedia.com"
+```
+
+Example Data (Test)
+
+```{r}
+example_url <- paste0("https://lol.gamepedia.com/Special:RunQuery/MatchHistoryTournament?MHT%5Btournament%5D=Concept:", "MSI%202018", "%20Main%20Event&MHT%5Btext%5D=Yes&pfRunQueryFormName=MatchHistoryTournament")
+
+example_html <- example_url %>% 
+  xml2::read_html()
+
+x <- example_html %>% 
+  html_nodes(".wikitable") %>% 
+  html_children() %>% 
+  .[3:(length(.)-1)] %>% 
+  .[25] # map index
+
+## Match Data
+get_match_data(x)%>% glimpse
+
+## Player Stats
+get_player_stats(x) %>% glimpse
+
+## Compare to Oracleelex.
+# load("data/match_stats.Rdata")
+# match_stats %>% glimpse()
+# 
+# stats_names <- example_html %>% 
+#   html_nodes(".wikitable") %>% 
+#   html_children() %>% 
+#   .[2] %>% 
+#   html_text() %>% 
+#   stringr::str_split("\\n+") %>% 
+#   unlist() %>% 
+#   stringr::str_trim()
+
+## Match Stats
+get_match_stats(x) %>% glimpse
+
+## Meta Data
+get_match_meta(x) %>% glimpse
+
+## Map Over Games (get combined stats)
+games_data <- example_html %>% 
+  html_nodes(".wikitable") %>% 
+  html_children() %>% 
+  .[3:(length(.)-1)] %>% 
+  map(get_match_history_safely) %>% 
+  map("result") %>% 
+  bind_rows()
+
+games_data
+```
+
+
+
+## Map Over Tournaments
+
+Get Tournament List
+
+```{r}
+tournament_url <- "https://lol.gamepedia.com/Special:RunQuery/MatchHistoryTournament?MHT%5Btournament%5D=Concept:CK%202017%20Spring%20Playoffs&MHT%5Btext%5D=Yes&pfRunQueryFormName=MatchHistoryTournament"
+
+tournament_list <- read_html(tournament_url) %>%
+  html_node(".inputSpan") %>%
+  html_children() %>%
+  html_children() %>%#
+  html_text() %>%
+  .[-1] %>% 
+  str_replace("Concept:", "")
+
+tournament_list %>% 
+  head
+
+
+tournament_urls <- tournament_list %>%
+  str_replace_all(., "\\s", "%20") %>%
+  paste0(base_url,"/", "Special:RunQuery/MatchHistoryTournament?MHT%5Btournament%5D=Concept:", ., "&MHT%5Btext%5D=Yes&pfRunQueryFormName=MatchHistoryTournament")
+```
+
+
+```{r}
+get_tournaments - function(x){
+  
+  tourn_table <- x %>% 
+    tibble(tourn_org = .) %>% 
+    mutate(
+      tourn_name = tourn_org %>% 
+        as.list() %>% 
+        map_chr(~{
+          .x %>% 
+            str_split("\\d{4}|Season \\d{1,}") %>% 
+            unlist() %>% 
+            .[1] %>% 
+            str_trim
+      }),
+      tourn_info = tourn_org %>% 
+        as.list() %>% 
+        map_chr(~{
+          .x %>% 
+            str_split("\\d{4}|Season \\d{1,}") %>% 
+            unlist() %>% 
+            .[2] %>% 
+            str_trim
+      }),
+      tourn_season = tourn_org %>% 
+        str_extract("\\d{4}|Season \\d{1,}"),
+      tourn_year = tourn_season %>% 
+        str_extract("\\d{4}"),
+      tourn_url = tourn_org %>%
+        str_replace_all(., "\\s", "%20") %>%
+          paste0(
+            "https://lol.gamepedia.com/", 
+            "Special:RunQuery/MatchHistoryTournament?MHT%5Btournament%5D=Concept:", .,
+            "&MHT%5Btext%5D=Yes&pfRunQueryFormName=MatchHistoryTournament"
+          )
+    ) %>% 
+    tidyr::nest(.key = "details", -tourn_name)
+  
+  return(tourn_table)
+}
+
+
+tourn_table <- get_tournaments(tournament_list)
+
+tourn_table$details[[1]]
+```
+
+
+
+
+
+
+```{r}
+get_tournament_matches_pro <- progressively(get_tournament_matches, length(tournament_list))
+
+gamepedia_list <- tournament_list %>% 
+  as.list() %>% 
+  map2(.x = ., .y = as.list(tournament_urls), ~{
+    .y %>% 
+      xml2::read_html() %>% 
+      get_tournament_matches_pro %>% 
+      map("result") %>% 
+      bind_rows() %>%
+      mutate(
+        tournament = .x, 
+        tournament_urls = .y
+      )
+  })
+
+#gamepedia_list
+#gamepedia_list %>% glimpse(max.depth = 2)
+
+gamepedia <- gamepedia_list %>% 
+  bind_rows 
+
+save_it(gamepedia)
+
+gamepedia %>% 
+  count(is.na(game_hash))
+  
+table(is.na(gamepedia))
+```
+
+
+
+## TODO 
+
+* **Bans appear to be the same by team!!!!**
+* [Runes incl. Position and Items (**by Tournament**) and TEam abbrevs](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Runes)
+* [Champion Aggregates](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Statistics/Champions)    
+* [Player Aggregates](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Statistics/Players)
+* [Player Profiles](https://lol.gamepedia.com/Bwipo)
+    + Champion by and Tournament Plyer Stats
+    + Match History
+* [Team Rosters (no clue)](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Team_Rosters)
+* [Picks and Bans](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Picks_and_Bans)
+
+
+## API
+
+### helper function
+
+```{r}
+gamepedia_example <- get(load("data/gamepedia_example.Rdata"))
+
+example_dat <- jsonlite::read_json("https://acs.leagueoflegends.com/v1/stats/game/FRA1TMNT2/260239?gameHash=7df11fb82c725f13")
+
+clean_matches(example_dat)
+
+ x <- example_dat
+
+clean_matches <- function(x) {
+  
+  match_base <- x[1:10] %>% 
+    as_tibble() %>% 
+    janitor::clean_names(.) %>% 
+    mutate(date = anytime::anytime(game_creation/1000)) #%>% 
+   # ifelse(is.null(.), NA, .)
+  
+  match_participants <- x$participants %>% 
+    purrr::map(~.x[1:5]) %>% 
+    bind_rows() #%>% 
+   # ifelse(is.null(.), NA, .) #%>% 
+    # list() %>%
+    # tibble(match_part = .)
+  
+  
+   match_stats <- 
+      x$participants %>% 
+      purrr::map(~.x[["stats"]]) %>% 
+      bind_rows() %>% 
+    mutate(win = ifelse(win, "Win", "Fail")) #%>% 
+   # ifelse(is.null(.), NA, .) #%>% 
+      # list() %>%
+      # tibble(match_part_details = .)
+
+   # match_masteries <- 
+   #    x$participants %>% 
+   #    purrr::map(~.x[["masteries"]]) %>% 
+   #    bind_rows()
+   # x$participants[[1]][["masteries"]] %>% bind_rows()
+     
+   # match_timeline <- 
+   #    x$participants %>% 
+   #    purrr::map(~.x[["timeline"]]) %>% 
+   #    bind_rows()
+   
+   
+  match_identities <- x$participantIdentities %>%
+    map(~.x[["player"]]) %>% 
+    bind_rows() %>% 
+    mutate(participantId = 1:10) #%>% 
+    #ifelse(is.null(.), NA, .)
+        
+   
+  player_stats <- match_identities %>% 
+    left_join(match_participants) %>% 
+    left_join(match_stats) %>%
+    mutate(team_abb = stringr::str_extract(summonerName, "^\\w+")) %>% 
+    mutate(summonerName = stringr::str_replace(summonerName, "^\\w+", "")) 
+
+
+  team_abbs <- player_stats %>% 
+    .[c(1, nrow(.)),] %>% 
+    janitor::clean_names() %>% 
+    select(team_id, team_abb)
+  
+  match_details <- list(x$teams[[1]][1:15], x$teams[[2]][1:15]) %>%
+    reduce(bind_rows) %>% 
+    janitor::clean_names() %>% 
+    left_join(team_abbs) %>% 
+   janitor::clean_names(.) %>% 
+   split(.$team_id) %>% 
+    map(~{
+      if(.x$team_id == 100){
+        colnames(.x) <- paste0("blue_", colnames(.x))
+        return(.x)
+      } else {
+        colnames(.x) <- paste0("red_", colnames(.x))
+        return(.x)
+      }
+    }) %>% 
+    reduce(bind_cols)# %>% 
+   # ifelse(is.null(.), NA, .)
+
+
+  dat <- match_base %>% 
+    bind_cols(
+      match_details, 
+      player_stats %>% 
+        list() %>%
+        tibble(player_stats = .)
+    ) 
+
+  return(dat)
+}
+
+
+```
+
+### call on api
+
+```{r}
+
+gamepedia <- get(load("data/gamepedia.Rdata"))
+
+gamepedia %<>% 
+  filter(!is.na(game_id),
+         !is.na(game_hash),
+         !is.na(tournament_id))
+
+get_match_details <- function(x) {
+  Sys.sleep(3)
+  raw <- jsonlite::read_json(x)
+  return(suppressMessages(clean_matches(raw)))
+}
+
+
+get_save_details <- safely(tidyMBO::progressively(get_match_details, 
+                                                  .n = nrow(gamepedia)))
+
+gamedetails <- gamepedia$api_url %>% 
+  purrr::map(get_save_details)
+
+
+matches <- gamedetails %>%
+  map("result") %>% 
+  bind_rows() #%>% 
+  # select(gameid, date, blue_team, red_team,
+  #        blue_win, red_win, everything()) -> match_data
+
+lolR::save_it(matches)
+
+# merged <- gamepedia %>%
+#   mutate(game_id = as.integer(game_id)) %>% 
+#   select(-date) %>% 
+#   left_join(game_examples)
+
+matches <- get(load("data/matches.Rdata"))
+
+clean_player_stats <- function(x) {
+    x %>% 
+      tidyr::unnest() %>% 
+      janitor::clean_names() %>% 
+      select(-combat_player_score:-player_score9 
+        # -perk0:-perk_sub_style
+      ) %>% 
+      split(.$team_id) %>% 
+      map(~{
+        if(.x$team_id[1] == 100){
+          colnames(.x) <- paste0("blue_player_", colnames(.x))
+          return(.x)
+        } else {
+          colnames(.x) <- paste0("red_player_", colnames(.x))
+          return(.x)
+        }
+    }) %>% 
+    reduce(bind_cols) %>% 
+    rename(game_id = blue_game_id) %>% 
+    select(-red_game_id) 
+}
+
+
+clean_player_stats_pro <- progressively(clean_player_stats, .n = nrow(matches))
+
+cleaned_players <- matches %>% 
+  select(game_id, player_stats) %>% 
+  split(1:nrow(.)) %>% 
+  map(clean_player_stats_pro) %>%
+  bind_rows() %>% 
+  group_by(game_id) %>% 
+  select(-contains("perk")) %>% 
+  mutate(participant_id = 1:n())
+
+save(cleaned_players, file = "data/cleaned_players.Rdata")
+
+```
+
+## Data
+
+```{r}
+gamepedia <- get(load("data/gamepedia.Rdata"))
+
+gamepedia %>% glimpse
+
+gp_dat <- gamepedia %>%
+  mutate(
+    tournament_season = tournament %>% 
+      str_extract("\\d{4}|Season \\d{1,}"),
+    tournament_name = tournament %>% 
+      as.list() %>% 
+      map_chr(~{
+        .x %>% 
+          str_split("\\d{4}|Season \\d{1,}") %>% 
+          unlist() %>% 
+          .[1] %>% 
+          str_trim
+    }),
+    tournament_info = tournament %>% 
+      as.list() %>% 
+      map_chr(~{
+        .x %>% 
+          str_split("\\d{4}|Season \\d{1,}") %>% 
+          unlist() %>% 
+          .[2] %>% 
+          str_trim
+    })
+  ) %>% 
+  dplyr::select(
+    gp_date = date,
+    gp_patch = patch, 
+    gp_patch_link = patch_link,
+    gp_win = win,
+    blue_team, blue_team_link, red_team, red_team_link,
+    players, 
+    blue_gold,
+    red_gold,
+    tournament, tournament_id, tournament_urls, 
+    tournament_season, tournament_name, tournament_info,
+    game_id, game_hash, match_url, api_url, vod
+  ) %>% 
+  mutate(gp_patch = ifelse(gp_patch == "-", NA, gp_patch)) %>% 
+  mutate(game_id = as.integer(game_id))
+  
+gp_dat %>% 
+  dplyr::glimpse()
+
+# nn %>% 
+#   group_by(tournament_name, tournament_season, tournament_info) %>% 
+#   tally
+```
+
+## gamepedia player stats
+
+
+```{r}
+gp_dat$players[[1]]
+gp_dat_players <- gp_dat %>% 
+  select(game_id, blue_team, red_team, players) %>% 
+  tidyr::unnest() %>% 
+  filter(!is.na(game_id)) %>% 
+  group_by(game_id) %>% 
+  mutate(participant_id = 1:n())
+
+lol_player_stats <- cleaned_players %>% 
+  left_join(gp_dat_players)
+
+lol_player_stats_nest <- lol_player_stats %>% 
+  tidyr::nest(.key = "players", -game_id)
+
+
+dd <- nn %>% 
+  filter(game_id == 1002570098)
+
+gp_dat_players 
+cleaned_players$red_participant_id
+```
+
+```{r}
+
+final <- matches %>% 
+  left_join(gp_dat) %>%
+  select(-player_stats, -players) %>%
+  left_join(lol_player_stats_nest)
+
+#save(final, file = "data/final.Rdata")
+
+
+glimpse(final)
+
+final_unnest <- 
+  final %>% 
+  tidyr::unnest()
+lol_player_stats
+```
+

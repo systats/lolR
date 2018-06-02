@@ -1,0 +1,307 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+## Packages
+
+```{r}
+pacman::p_load(dplyr, ggplot2, purrr, xml2, stringr, anytime, magrittr, h2o, keras, caret, slam, data.table)
+```
+
+
+## Load Data
+
+```{r}
+load("data/final.Rdata")
+final %>% glimpse()
+
+final_unnest <- 
+  final %>% 
+  tidyr::unnest()
+
+final_sum <- final_unnest %>% 
+  select(game_id, blue_longest_time_spent_living, red_longest_time_spent_living, blue_largest_critical_strike, red_largest_critical_strike, blue_total_heal, red_total_heal, blue_total_minions_killed, red_total_minions_killed, blue_wards_placed, red_wards_placed, blue_wards_killed, red_wards_killed) %>% 
+  group_by(game_id) %>% 
+  summarise_all(.funs = mean)
+```
+
+
+## Prep
+
+
+```{r}
+work <- final %>% 
+  select(blue_win, blue_team, red_team, tournament, gp_date, game_id,
+         blue_first_tower, blue_first_blood
+         #blue_gold, red_gold
+  ) %>%  
+  left_join(final_sum) %>% 
+  mutate(
+    blue_win = ifelse(blue_win == "Win", 1, 0) %>% as.factor(),
+    blue_team = as.factor(blue_team),
+    red_team = as.factor(red_team),
+    tournament = as.factor(tournament)
+    #red_win = ifelse(win == "red", 1, 0)
+  ) %>% 
+  mutate_if(is.logical, function(x) ifelse(x, 1, 0)) 
+#bind_cols(blue_champion_dummies, red_champion_dummies)
+
+work %>% glimpse
+
+# final %>% 
+#   count(blue_win)
+
+y <- "blue_win"
+x <- setdiff(colnames(work), c(y, "gp_date", "game_id", "tournament"))
+```
+
+## Exploration
+
+## Find Team
+
+```{r}
+work %>% 
+  count(blue_team)
+  
+work %>% 
+  filter(game_id)
+
+
+# work %>% 
+#   filter(blue_team %in% c("Snake Esports", "Invictus Gaming") | red_team %in% c("Snake Esports", "Invictus Gaming"))
+# 
+# work %>% 
+#   filter(blue_team %in% c("Royal Never Give Up", "EDward Gaming") | red_team %in% c("Royal Never Give Up", "EDward Gaming"))
+```
+
+
+
+
+### Win Frequency by Team 
+
+```{r}
+final %>% 
+  select(blue_team, red_team, blue_win) %>% 
+  tidyr::gather(side, team, -blue_win) %>% 
+  mutate(win = ifelse((blue_win == 1 & side == "blue_team") | (blue_win == 0 & side == "red_team"), 1, 0)) %>% 
+  group_by(team) %>% 
+  count(win) %>% 
+  mutate(perc = n/sum(n)*100) %>% 
+  filter(win == 1) %>%
+  ungroup() %>% 
+  filter(n > 10) %>%
+  arrange(desc(perc))
+```
+
+## By Tournament
+
+```{r}
+tournament_places <- final %>% 
+  select(blue_team, red_team, blue_win, tournament) %>% 
+  tidyr::gather(side, team, -blue_win, -tournament) %>% 
+  mutate(win = ifelse((blue_win == 1 & side == "blue_team") | (blue_win == 0 & side == "red_team"), 1, 0)) %>% 
+  group_by(tournament, team) %>% 
+  count(win) %>% 
+  mutate(perc = n/sum(n)*100) %>% 
+  filter(win == 1) %>%
+  group_by(tournament) %>% 
+  arrange(tournament, desc(perc)) %>% 
+  mutate(place = 1:n()) %>% 
+  ungroup()
+
+tournament_places %>% 
+  group_by(team) %>% 
+  count(place) %>% 
+  arrange(place, desc(nn))
+```
+
+### Gold
+
+```{r}
+nn <- final %>% 
+  filter(!is.na(blue_gold)) %>%
+  select(blue_gold, red_gold, blue_win) %>% 
+  tidyr::gather(side, gold, -blue_win) 
+
+
+nn %>% 
+  mutate(win = ifelse((blue_win == 1 & side == "blue_gold") | (blue_win == 0 & side == "red_gold"), 1, 0) %>% as.factor) %>% 
+  ggplot(aes(win, gold)) +
+  geom_violin() +
+  ylim(0, 200)
+```
+
+
+
+
+
+## H2O
+
+
+```{r}
+h2o.init()
+
+# split_data <- function(data, p = .8){
+#   train_id <- caret::createDataPartition(y = 1:nrow(data), p = p, 
+#     list = F)
+#   train <- data[train_id, ]
+#   test <- data[-train_id, ]
+#   return(list(train = train, test = test))
+# } 
+#train_split <- split_data(final)
+
+train_split <- work %>% 
+  split(ifelse(str_detect(.$gp_date, "2018"), "test", "train"))
+  
+train_h2o <- as.h2o(train_split$train)
+#train_h2o$blue_win <- as.factor(train_h2o$blue_win)
+test_h2o <- as.h2o(train_split$test)
+```
+
+
+### GBM
+
+```{r}
+dim(train_h2o) 
+fit_gbm <- h2o.gbm(x = x, y = y, training_frame = train_h2o)
+h2o.performance(fit_gbm, newdata = test_h2o)
+h2o.varimp_plot(fit_gbm)
+```
+
+
+
+### DNN
+
+```{r}
+fit_dnn<- h2o.deeplearning(x = x, y = y, training_frame = train_h2o, hidden = c(200, 100, 30))
+h2o.performance(fit_dnn, newdata = test_h2o)
+h2o.varimp_plot(fit_dnn)
+```
+
+```{r}
+
+```
+
+
+
+```{r}
+preds <- predict(fit_dnn, test_h2o) %>% 
+  as_tibble %>% 
+  mutate_if(is.numeric, function(x) round(x, 4))
+
+# tibble(
+#   real = train_split$test$blue_win,
+#   pred = preds$predict
+# )
+
+options(scipen = 999)
+
+final_preds <- preds %>% 
+  bind_cols(train_split$test) %>%
+  select(gp_date, everything()) %>%
+  filter(str_detect(tournament, "MSI"))
+
+gg1 <- final_preds %>% 
+  mutate(hit = blue_win == predict) %>% 
+  ggplot(aes(p1, fill = hit)) +
+  geom_density(alpha = .5)
+
+gg1
+
+
+gg2 <- final_preds %>% 
+  mutate(hit = blue_win == predict) %>% 
+  ggplot(aes(p1, fill = hit)) +
+  geom_histogram()
+
+gg2
+
+caret::confusionMatrix(train_split$test$blue_win,
+preds$predict)
+```
+
+
+
+
+
+
+
+
+
+
+```{r}
+nn <- gamepedia %>% 
+  select(players) %>% 
+  mutate(id = 1:n()) %>%
+  tidyr::unnest()
+
+```
+
+
+### Red Champion dummy Matrix
+
+```{r}
+red_champion_dummies <- nn$red_champions %>%
+  as.factor() %>% 
+  as.numeric() %>%
+  dummies::dummy()
+
+red_champion_dummies <- red_champion_dummies %>% 
+  as_data_frame() %>%
+  mutate(id = nn$id) %>% 
+  group_by(id) %>% 
+  summarise_all(sum) %>% 
+  ungroup
+```
+
+### Red Champion dummy Matrix
+
+```{r}
+blue_champion_dummies <- nn$blue_champions %>%
+  as.factor() %>% 
+  as.numeric() %>%
+  dummies::dummy()
+
+blue_champion_dummies <- blue_champion_dummies %>% 
+  as_data_frame() %>%
+  mutate(id = nn$id) %>% 
+  group_by(id) %>% 
+  summarise_all(sum) %>% 
+  ungroup
+```
+
+
+### Red Player dummy Matrix
+
+```{r}
+red_player_dummies <- nn$red_players %>%
+  as.factor() %>% 
+  as.numeric() %>%
+  dummies::dummy()
+
+red_player_dummies <- red_player_dummies %>% 
+  as_data_frame() %>%
+  mutate(id = nn$id) %>% 
+  group_by(id) %>% 
+  summarise_all(sum) %>% 
+  ungroup
+```
+
+
+### Blue Player dummy Matrix
+
+```{r}
+blue_player_dummies <- nn$blue_players %>%
+  dummies::dummy()
+
+blue_player_dummies <- blue_player_dummies %>% 
+  as_data_frame() %>%
+  mutate(id = nn$id) %>% 
+  group_by(id) %>% 
+  summarise_all(sum) %>% 
+  ungroup
+```
+
+

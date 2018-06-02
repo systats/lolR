@@ -1,0 +1,172 @@
+---
+title: "extract_data"
+author: "Simon"
+date: "2 6 2018"
+output: html_document
+---
+
+![](tw_01.jpg)
+
+
+## Packages
+
+```{r}
+pacman::p_load(dplyr, ggplot2, rvest, purrr, xml2, stringr, anytime, magrittr, tidyr, tibble, devtools)
+devtools::load_all()
+```
+
+
+## TODO 
+
+[x] [Runes incl. Position and Items (**by Tournament**) and Taam abbrevs](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Runes)
+[] [Champion Aggregates](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Statistics/Champions)    
+[] [Player Aggregates](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Statistics/Players)
+[] [Player Profiles](https://lol.gamepedia.com/Bwipo)
+    + Champion by and Tournament Plyer Stats
+    + Match History
+[] [Team Rosters (no clue)](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Team_Rosters)
+[] [Picks and Bans](https://lol.gamepedia.com/2018_Mid-Season_Invitational/Main_Event/Picks_and_Bans)
+
+
+## Base extractors
+
+
+```{r}
+# "https://lol.gamepedia.com/Special:RunQuery/MatchHistoryTournament"
+x <- jsonlite::read_json("https://acs.leagueoflegends.com/v1/stats/game/TRLH1/1001960064?gameHash=6ca759012b24b8b1")
+```
+
+### MATCH DATA
+
+```{r}
+match_data <- get_match_data_acs(x)
+match_data %>% glimpse()
+```
+
+### Player data
+
+```{r}
+#glimpse(x[[13]], max.level = 2)
+player_data <- get_players_acs(x)
+player_data %>% glimpse()
+```
+
+### TEAM DATA
+
+```{r}
+glimpse(x[11], max.level = 2)
+team_stats <- get_team_stats_acs(x)
+team_stats %>% glimpse
+```
+
+### Player Level Data
+
+#### Player Champion
+
+```{r}
+player_champion <- get_player_champion_acs(x) 
+player_champion %>% glimpse
+```
+
+#### player master
+
+```{r}
+player_master <- get_player_master_acs(x)
+player_master %>% glimpse
+```
+
+
+#### player RUNES
+* http://de.leagueoflegends.wikia.com/wiki/Rune
+* https://runes.lol/
+
+```{r}
+#glimpse(x[[12]][[1]], max.level = 3)
+player_runes <- get_player_runes_acs(x)
+player_runes %>% glimpse
+```
+
+#### Highest Achivement
+
+```{r}
+#x[[12]][[1]]$highestAchievedSeasonTier
+player_achieve <- get_player_ach_acs(x)
+player_achieve %>% glimpse
+```
+
+#### Player MATCH Stats
+
+```{r}
+player_match_stats <- get_player_match_stats_acs(x)
+glimpse(player_match_stats)
+```
+
+
+#### TIMELINE
+
+```{r}
+#x[[12]][[1]]$timeline %>% .[2:8]
+player_timeline <- get_player_timeline_acs(x)
+#player_timeline %>% unnest
+player_timeline %>% glimpse
+```
+
+### Combine Individual Player Stats
+
+```{r}
+player <- player_data %>% 
+  left_join(player_champion) %>%
+  left_join(player_master) %>% 
+  left_join(player_runes) %>%
+  left_join(player_achieve) %>% 
+  left_join(player_match_stats) %>% 
+  left_join(player_timeline)
+
+player %>% glimpse()
+colnames(player)
+```
+
+
+### Main Player Level Function
+
+```{r}
+nn <- extract_match("data/games/game_100002.json")
+
+nn %>% select(player_stats) %>% .[[1]]
+nn %>% select(team_stats) %>% .[[1]]
+```
+
+
+## Apply Main Scraper
+
+```{r}
+extract_matches_safely <- purrr::safely(extract_match)
+extract_matches_pro <- lolR::progressively(extract_matches_safely, length(dir("data/games")[-1]))
+
+matches_list  <- dir("data/games")[-1] %>% 
+  #.[1] %>% 
+  paste0("data/games/", .) %>% 
+  as.list %>% 
+  map(~{
+    out <- .x %>% 
+      extract_matches_pro
+
+    cat(!is.null(out))
+    cat("\n")
+    
+    return(out)
+  }) 
+
+matches_list %>% 
+  map("error")
+
+matches_acs <- matches_list %>% 
+  map("result") %>% 
+  bind_rows()
+
+save(matches_acs, file = "data/matches_acs.Rdata")
+
+
+matches_acs %>% select(team_stats) %>% unnest
+matches_acs %>% select(player_stats) %>% unnest
+```
